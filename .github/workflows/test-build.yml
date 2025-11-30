@@ -1,0 +1,66 @@
+name: Build Debian Package
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master, main]
+    paths:
+      - 'debian/**'
+      - 'src/**'
+      - '.github/workflows/debian-build.yml'
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  build-debian:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            debhelper-compat \
+            libssl-dev \
+            libuv1-dev \
+            lintian \
+            autopkgtest \
+            autodep8
+      
+      - name: Create upstream tarball
+        run: |
+          VERSION=$(head -1 debian/changelog | sed 's/.*(\([^)]*\)).*/\1/' | cut -d- -f1)
+          git archive --format=tar --prefix=libusockets-${VERSION}/ HEAD | gzip > ../libusockets_${VERSION}.orig.tar.gz
+      
+      - name: Build source and binary packages
+        run: |
+          rm -rf .github
+          dpkg-buildpackage -us -uc
+      
+      - name: Collect artifacts
+        run: |
+          mkdir -p artifacts
+          mv ../*.deb ../*.dsc ../*.tar.* ../*.changes artifacts/
+          mv ../*.buildinfo artifacts/ 2>/dev/null || true   
+
+      
+      - name: Run lintian
+        run: lintian -i artifacts/*.changes
+        continue-on-error: true
+      
+      - name: Run autopkgtest
+        run: |
+          cd artifacts
+          sudo autopkgtest *.dsc -- null
+      
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: debian-packages
+          path: artifacts/*
+          retention-days: 1

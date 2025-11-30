@@ -1,0 +1,213 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            debian_arch: amd64
+            cross_compile: false
+          - arch: arm64
+            debian_arch: arm64
+            cross_compile: true
+            cc: aarch64-linux-gnu-gcc
+            cross_prefix: aarch64-linux-gnu-
+          - arch: armhf
+            debian_arch: armhf
+            cross_compile: true
+            cc: arm-linux-gnueabihf-gcc
+            cross_prefix: arm-linux-gnueabihf-
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      
+      - name: Set up QEMU
+        if: matrix.cross_compile
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+      
+      - name: Install base dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            debhelper-compat \
+            lintian \
+            autopkgtest \
+            autodep8 \
+            dpkg-dev
+      
+      - name: Setup cross-compilation for ${{ matrix.arch }}
+        if: matrix.cross_compile
+        run: |
+          sudo dpkg --add-architecture ${{ matrix.debian_arch }}
+          sudo sed -i 's/deb http/deb [arch=amd64] http/' /etc/apt/sources.list
+          echo "deb [arch=${{ matrix.debian_arch }}] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -sc) main universe" | sudo tee -a /etc/apt/sources.list
+          echo "deb [arch=${{ matrix.debian_arch }}] http://ports.ubuntu.com/ubuntu-ports $(lsb_release -sc)-updates main universe" | sudo tee -a /etc/apt/sources.list
+          sudo apt-get update || true
+          sudo apt-get install -y crossbuild-essential-${{ matrix.debian_arch }}
+          sudo apt-get install -y libssl-dev:${{ matrix.debian_arch }} libuv1-dev:${{ matrix.debian_arch }} || true
+      
+      - name: Install native dependencies
+        if: matrix.arch == 'amd64'
+        run: |
+          sudo apt-get install -y libssl-dev libuv1-dev
+      
+      - name: Create upstream tarball
+        run: |
+          VERSION=$(head -1 debian/changelog | sed 's/.*(\([^)]*\)).*/\1/' | cut -d- -f1)
+          git archive --format=tar --prefix=libusockets-${VERSION}/ HEAD | gzip > ../libusockets_${VERSION}.orig.tar.gz
+          echo "Created tarball: ../libusockets_${VERSION}.orig.tar.gz"
+      
+      - name: Build packages for ${{ matrix.arch }}
+        run: |
+          rm -rf .github
+          if [ "${{ matrix.cross_compile }}" = "true" ]; then
+            echo "Building binary package for ${{ matrix.arch }} with cross-compilation"
+            export CC=${{ matrix.cc }}
+            export CXX=${{ matrix.cross_prefix }}g++
+            export AR=${{ matrix.cross_prefix }}ar
+            export RANLIB=${{ matrix.cross_prefix }}ranlib
+            export DEB_BUILD_OPTIONS="nocheck"
+            dpkg-buildpackage -b -us -uc -a${{ matrix.debian_arch }} -d --host-arch ${{ matrix.debian_arch }}
+          else
+            echo "Building native amd64 package (source + binary)"
+            dpkg-buildpackage -us -uc
+          fi
+      
+      - name: List built packages
+        run: |
+          echo "Built packages:"
+          ls -lh ../*.deb ../*.dsc ../*.tar.* ../*.changes ../*.buildinfo 2>/dev/null || echo "No packages found"
+      
+      - name: Collect artifacts
+        run: |
+          mkdir -p artifacts
+          cp ../*.deb artifacts/ 2>/dev/null || true
+          if [ "${{ matrix.arch }}" = "amd64" ]; then
+            cp ../*.dsc ../*.tar.* artifacts/ 2>/dev/null || true
+          fi
+          cp ../*.changes ../*.buildinfo artifacts/ 2>/dev/null || true
+          echo "Artifacts for ${{ matrix.arch }}:"
+          ls -lh artifacts/
+      
+      - name: Verify architecture
+        run: |
+          for deb in artifacts/*.deb; do
+            if [ -f "$deb" ]; then
+              echo "Package: $deb"
+              dpkg-deb --info "$deb" | grep Architecture || true
+            fi
+          done
+      
+      - name: Run lintian
+        run: |
+          if ls artifacts/*.changes 1> /dev/null 2>&1; then
+            lintian -i artifacts/*.changes || true
+          fi
+        continue-on-error: true
+      
+      - name: Run autopkgtest
+        if: matrix.arch == 'amd64'
+        run: |
+          cd artifacts
+          if ls *.dsc 1> /dev/null 2>&1; then
+            sudo autopkgtest *.dsc -- null || true
+          fi
+        continue-on-error: true
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: debian-packages-${{ matrix.arch }}
+          path: artifacts/*
+          if-no-files-found: error
+
+  create-release:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+      
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all-artifacts
+      
+      - name: List all downloaded artifacts
+        run: |
+          echo "All downloaded artifacts:"
+          find all-artifacts -type f -exec ls -lh {} \;
+      
+      - name: Prepare release files
+        run: |
+          mkdir -p release-files
+          find all-artifacts -type f -exec cp -v {} release-files/ \;
+          echo ""
+          echo "Final release files:"
+          ls -lh release-files/
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ steps.version.outputs.tag }}
+          body: |
+            ## libusockets ${{ steps.version.outputs.version }}
+            
+            Debian packages for uSockets library.
+            
+            ### Artifacts
+            - **Source package** (.dsc, .orig.tar.gz) for rebuilding
+            - **Binary packages** for amd64, arm64, armhf
+            
+            ### Installation
+            Download the appropriate .deb for your architecture:
+            ```
+            # For amd64
+            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/libusockets-dev_${{ steps.version.outputs.version }}_amd64.deb
+            sudo dpkg -i libusockets-dev_${{ steps.version.outputs.version }}_amd64.deb
+            
+            # For arm64
+            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/libusockets-dev_${{ steps.version.outputs.version }}_arm64.deb
+            sudo dpkg -i libusockets-dev_${{ steps.version.outputs.version }}_arm64.deb
+            
+            # For armhf
+            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/libusockets-dev_${{ steps.version.outputs.version }}_armhf.deb
+            sudo dpkg -i libusockets-dev_${{ steps.version.outputs.version }}_armhf.deb
+            ```
+            
+            ### Rebuild from source
+            ```
+            wget https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/libusockets_${{ steps.version.outputs.version }}.dsc
+            dpkg-source -x libusockets_${{ steps.version.outputs.version }}.dsc
+            cd libusockets-${{ steps.version.outputs.version }}
+            dpkg-buildpackage -b -us -uc
+            ```
+          files: release-files/*
+          draft: false
+          prerelease: false

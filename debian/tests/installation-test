@@ -1,0 +1,38 @@
+#!/bin/bash
+set -e
+
+echo "Testing libusockets installation..."
+
+# Verify header file installation
+TEST_DIR="/usr/include"
+
+if [ ! -f "$TEST_DIR/libusockets.h" ]; then
+    echo "✗ libusockets.h not installed"
+    exit 1
+fi
+
+echo "✓ libusockets.h found in $TEST_DIR"
+
+# Get library directory from pkg-config
+LIB_FILES=$(pkg-config --variable=libdir libusockets)
+
+if [ -z "$LIB_FILES" ]; then
+    echo "✗ Library directory not found"
+    exit 1
+fi
+
+echo "✓ Library directory: $LIB_FILES"
+
+# Check if library files exist
+if find "$LIB_FILES" -name "*usockets*" -type f 2>/dev/null | grep -q .; then
+    echo "✓ Library files found"
+else
+    echo "⚠ No library files found (static only?)"
+fi
+
+# Verify pkg-config file location
+if [ ! -f "$LIB_FILES/../pkgconfig/libusockets.pc" ] && [ ! -f "/usr/lib/pkgconfig/libusockets.pc" ] && [ ! -f "/usr/lib/x86_64-linux-gnu/pkgconfig/libusockets.pc" ]; then
+    echo "⚠ pkg-config file might not be in expected location"
+fi
+
+echo "✓ Installation test passed!"

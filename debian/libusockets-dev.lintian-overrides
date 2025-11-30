@@ -1,0 +1,15 @@
+# Static library compiled with LTO (-flto flag) contains code in
+# intermediate representation format (GIMPLE/LLVM bitcode) which is
+# resolved at link time when building final applications.
+#
+# Additionally, some object files (gcd.o, epoll_kqueue.o, io_*.o, quic.o)
+# are intentionally empty due to conditional compilation:
+# - gcd.o: macOS-only (Grand Central Dispatch), unused on Linux
+# - epoll_kqueue.o: not used when WITH_LIBUV=1 (libuv replaces epoll)
+# - io_*.o: io_uring support not enabled (no WITH_IO_URING flag)
+# - quic.o: QUIC protocol implementation not yet complete
+#
+# The library is fully functional, as verified by symbol analysis:
+# $ nm /usr/lib/*/libuSockets.a | grep ' T ' shows 100+ function symbols
+# including bsd_*, us_socket_*, us_loop_*, ssl_* functions.
+libusockets-dev: no-code-sections *

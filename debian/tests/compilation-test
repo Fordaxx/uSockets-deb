@@ -1,0 +1,50 @@
+#!/bin/bash
+set -e
+
+echo "Testing compilation with libusockets..."
+
+# checking dependencies
+command -v pkg-config >/dev/null 2>&1 || { echo "✗ pkg-config не установлен"; exit 1; }
+command -v g++ >/dev/null 2>&1 || { echo "✗ g++ не установлен"; exit 1; }
+
+# temp directory
+TEST_DIR=$(mktemp -d)
+trap "rm -rf $TEST_DIR" EXIT
+
+# test file
+cat > "$TEST_DIR/test_libusockets.c" << 'TESTEOF'
+#include <libusockets.h>
+#include <stdio.h>
+
+int main() {
+    printf("libusockets.h header found!\n");
+    return 0;
+}
+TESTEOF
+
+# recieving compilation flags
+CFLAGS=$(pkg-config --cflags libusockets 2>/dev/null) || { echo "✗ libusockets не найден в pkg-config"; exit 1; }
+LIBS=$(pkg-config --libs libusockets 2>/dev/null) || { echo "✗ Не удалось получить LIBS для libusockets"; exit 1; }
+
+echo "CFLAGS: $CFLAGS"
+echo "LIBS: $LIBS"
+
+if g++ $CFLAGS "$TEST_DIR/test_libusockets.c" $LIBS -o "$TEST_DIR/test_libusockets" 2>&1; then
+    echo "✓ Compilation successful"
+else
+    echo "✗ Compilation failed"
+    exit 1
+fi
+
+# check the binary
+if [ -x "$TEST_DIR/test_libusockets" ]; then
+    if "$TEST_DIR/test_libusockets"; then
+        echo "✓ Test passed!"
+    else
+        echo "✗ Test execution failed"
+        exit 1
+    fi
+else
+    echo "✗ Binary not created or not executable"
+    exit 1
+fi

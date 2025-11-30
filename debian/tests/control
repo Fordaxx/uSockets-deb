@@ -1,0 +1,14 @@
+Tests: compilation-test
+Depends: @, g++, pkg-config, libc6-dev
+Restrictions: allow-stderr
+
+Tests: installation-test
+Depends: @, pkg-config
+
+Tests: pkg-config-test
+Depends: @, g++, pkg-config, libc6-dev
+Restrictions: allow-stderr
+
+Tests: echo-server-example
+Depends: @, g++, pkg-config, build-essential
+Restrictions: allow-stderr

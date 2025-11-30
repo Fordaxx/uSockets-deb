@@ -1,0 +1,63 @@
+#!/bin/bash
+set -e
+
+echo "Testing pkg-config for libusockets..."
+
+# verify if the package exists
+if ! pkg-config --exists libusockets; then
+    echo "✗ libusockets not found in pkg-config"
+    exit 1
+fi
+
+echo "✓ libusockets found in pkg-config"
+
+# version check
+VERSION=$(pkg-config --modversion libusockets)
+if [ -z "$VERSION" ]; then
+    echo "✗ Unable to get libusockets version"
+    exit 1
+fi
+
+echo "✓ Version: $VERSION"
+
+# checking CFLAGS (empty output is normal for this package)
+CFLAGS=$(pkg-config --cflags libusockets)
+echo "✓ CFLAGS: $CFLAGS"
+
+# checking LIBS
+LIBS=$(pkg-config --libs libusockets)
+if [ -z "$LIBS" ]; then
+    echo "✗ No LIBS returned"
+    exit 1
+fi
+
+echo "✓ LIBS: $LIBS"
+
+#verify include and library directory variables
+INCLUDEDIR=$(pkg-config --variable=includedir libusockets)
+LIBDIR=$(pkg-config --variable=libdir libusockets)
+
+if [ -z "$INCLUDEDIR" ] || [ -z "$LIBDIR" ]; then
+    echo "✗ Unable to get include or library directories"
+    exit 1
+fi
+
+echo "✓ Include dir: $INCLUDEDIR"
+echo "✓ Lib dir: $LIBDIR"
+
+# trying to use CFLAGS and LIBS
+TEST_FILE=$(mktemp).c
+trap "rm -f $TEST_FILE" EXIT
+
+cat > "$TEST_FILE" << 'EOF'
+#include <libusockets.h>
+int main() { return 0; }
+EOF
+
+if ! g++ $CFLAGS "$TEST_FILE" $LIBS -o /dev/null 2>/dev/null; then
+    echo "✗ pkg-config values are inconsistent or incomplete"
+    exit 1
+fi
+
+echo "✓ pkg-config values are consistent and work correctly"
+echo "✓ All pkg-config tests passed!"

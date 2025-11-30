@@ -1,18 +1,80 @@
-# Optimized TCP, TLS, QUIC & HTTP3 transports
+# libusockets - Debian Package
 
-µSockets is the non-blocking, thread-per-CPU foundation library used by [µWebSockets](https://github.com/uNetworking/uWebSockets). It provides optimized networking - using the same opaque API (programming interface) across all supported transports, event-loops and platforms (QUIC is work-in-progress, so is io_uring).
+Debian packaging for µSockets — a minimal cross-platform eventing, networking and cryptography library.
 
-<a href="https://github.com/uNetworking/uSockets/releases"><img src="https://img.shields.io/github/v/release/uNetworking/uSockets"></a>
+## About µSockets
 
-## Write code once
-Based on µSockets, apps like µWebSockets can run on many platforms, over many transports and with many event-loops - all without any code changes or special execution paths. Moving data over TCP is just as easy as over QUIC.
+- **Minimal footprint** async networking library
+- **Event loops**: epoll, kqueue, libuv, io_uring, GCD
+- **Async networking** with SSL/TLS and QUIC support
+- **Apache License 2.0**
 
-Hit `make examples` to get started.
+**Upstream**: https://github.com/uNetworking/uSockets
 
-## Lightweight or featureful
-In its minimal, TCP-only, configuration µSockets has no dependencies other than the very OS kernel and compiles down to a tiny binary. In its full configuration it depends on BoringSSL, lsquic and potentially some event-loop library.
+## Quick Start
 
-Here are some configurations; WITH_IO_URING, WITH_LIBUV, WITH_ASIO, WITH_GCD, WITH_ASAN, WITH_QUIC, WITH_BORINGSSL, WITH_OPENSSL, WITH_WOLFSSL.
+### Installing
 
-## Fast & stable
-µWebSockets itself is known to have run with outstanding performance and stability since 2016. This thanks to, among other factors, the speed and stability of µSockets. We fuzz and randomly "hammer test" the library as part of security & stability testing done in the µWebSockets project.
+```bash
+sudo dpkg -i libusockets-dev_*.deb
+```
+
+### Building from source
+
+```bash
+sudo apt-get install debhelper-compat build-essential libssl-dev libuv1-dev pkg-config
+dpkg-source -x libusockets_*.dsc
+cd libusockets-*/
+dpkg-buildpackage -b -us -uc
+sudo dpkg -i ../libusockets-dev_*.deb
+sudo apt-get install -f
+```
+
+## Package Information
+
+- **Package**: libusockets-dev
+- **Version**: 0.8.8-1
+- **Maintainer**: Ruslan Dautov
+- **Build deps**: debhelper-compat (= 13), libssl-dev, libuv1-dev, pkg-config
+
+## Build Flags
+
+- `WITH_LIBUV=1` — libuv backend
+- `WITH_OPENSSL=1` — OpenSSL support 
+
+## Debian Packaging Files
+
+Key packaging files and their purposes:
+
+- **debian/control**: Package metadata and dependencies
+- **debian/rules**: Build instructions and configuration
+- **debian/copyright**: License and copyright information
+- **debian/libusockets-dev.install**: Files to include in the package
+- **debian/pkg-config/libusockets.pc**: pkg-config metadata
+- **debian/tests/**: Autopkgtest test suite
+- **debian/changelog**: Version history
+- **debian/watch**: auto tracking of new upstream releases from GitHub
+
+## Contributing
+
+**Debian packaging**:
+1. Fork this repository
+2. Modify `debian/` directory
+3. Update `debian/changelog`
+4. Test with `dpkg-buildpackage`
+5. Submit a pull request
+
+
+## License
+
+- **Upstream & Debian packaging**: Apache License 2.0
+- See `debian/copyright` for full license info
+
+## Support
+
+- **Packaging issues**: Report here
+- **Library issues**: https://github.com/uNetworking/uSockets/issues
+
+---
+
+**Maintainer**: Ruslan Dautov <r.dautoff2016@yandex.ru>

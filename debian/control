@@ -1,0 +1,31 @@
+Source: libusockets
+Section: libs
+Priority: optional
+Maintainer: Ruslan Dautov <r.dautoff2016@yandex.ru>
+Build-Depends: debhelper-compat (= 13),
+               libssl-dev,
+               libuv1-dev,
+               pkg-config
+Standards-Version: 4.7.2.0
+Homepage: https://github.com/uNetworking/uSockets
+Vcs-Browser: https://github.com/roomitz/uSockets-deb
+Vcs-Git: https://github.com/roomitz/uSockets-deb.git
+Rules-Requires-Root: no
+
+Package: libusockets-dev
+Section: libdevel
+Architecture: any
+Multi-Arch: same
+Depends: ${misc:Depends},
+         libssl-dev,
+         libuv1-dev
+Description: Minimal cross-platform eventing library - development files
+ µSockets is a miniscule cross-platform eventing, networking and 
+ cryptography library featuring a C API for async operations.
+ .
+ It provides comprehensive socket and networking functionality with 
+ optional support for OpenSSL, libuv, QUIC, and HTTP/3 protocols.
+ .
+ This package contains the header files and static library.
+ Upstream intentionally provides only static library linking for
+ optimal performance and ABI stability.

@@ -1,0 +1,92 @@
+#!/bin/sh
+set -e
+
+echo "=== Testing echo server example compilation ==="
+
+cat > /tmp/echo_test.c << 'CEOF'
+#include <libusockets.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+/* Socket extension to store per-socket data */
+struct echo_socket {
+    int unused;
+};
+
+/* Socket data handler - echoes received data back */
+struct us_socket_t *on_echo_socket_data(struct us_socket_t *s,
+                                         char *data, int length) {
+    printf("Received: %.*s\n", length, data);
+
+    /* Echo the data back to client */
+    us_socket_write(0, s, data, length, 0);
+
+    return s;
+}
+
+/* Socket opened handler */
+struct us_socket_t *on_echo_socket_open(struct us_socket_t *s,
+                                         int is_client,
+                                         char *ip, int ip_length) {
+    printf("Client connected from %.*s\n", ip_length, ip);
+    return s;
+}
+
+/* Socket closed handler */
+struct us_socket_t *on_echo_socket_close(struct us_socket_t *s,
+                                          int code, void *reason) {
+    printf("Client disconnected\n");
+    return s;
+}
+
+int main() {
+    /* Create the event loop */
+    struct us_loop_t *loop = us_create_loop(0, 0, 0, 0, 0);
+
+    if (!loop) {
+        fprintf(stderr, "Failed to create event loop\n");
+        return 1;
+    }
+
+    /* Create socket context (non-SSL) */
+    struct us_socket_context_options_t options = {};
+    struct us_socket_context_t *echo_context =
+        us_create_socket_context(0, loop, 0, options);
+
+    if (!echo_context) {
+        fprintf(stderr, "Failed to create socket context\n");
+        return 1;
+    }
+
+    /* Register event handlers */
+    us_socket_context_on_open(0, echo_context, on_echo_socket_open);
+    us_socket_context_on_data(0, echo_context, on_echo_socket_data);
+    us_socket_context_on_close(0, echo_context, on_echo_socket_close);
+
+    /* Start listening on port 0 (let OS pick port) for testing */
+    struct us_listen_socket_t *listen_socket =
+        us_socket_context_listen(0, echo_context, 0, 0, 0,
+                                  sizeof(struct echo_socket));
+
+    if (listen_socket) {
+        printf("Echo server test: listen socket created successfully\n");
+        /* Don't run the loop, just test that everything initializes */
+        return 0;
+    } else {
+        fprintf(stderr, "Failed to create listen socket\n");
+        return 1;
+    }
+}
+CEOF
+
+echo "Compiling echo_test.c with g++..."
+g++ /tmp/echo_test.c $(pkg-config --cflags --libs libusockets) -o /tmp/echo_test || exit 1
+
+echo "Running echo_test..."
+/tmp/echo_test || exit 1
+
+echo "Cleaning up..."
+rm -f /tmp/echo_test.c /tmp/echo_test
+
+echo "=== Echo server example test PASSED ==="
