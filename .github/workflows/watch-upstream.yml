@@ -20,7 +20,7 @@ jobs:
           sudo cp /usr/share/keyrings/debian-archive-keyring.gpg /etc/apt/trusted.gpg.d/debian-archive-keyring.gpg
           sudo apt-get update
           for d in bin lib lib32 lib64 libo32 libx32 sbin; do
-            sudo dpkg-divert --package base-files --no-rename --remove /$d || true
+            sudo dpkg-divert --package base-files --no-rename --remove /$d 
           done
           sudo apt-get -t testing install -y devscripts
           uscan --version
