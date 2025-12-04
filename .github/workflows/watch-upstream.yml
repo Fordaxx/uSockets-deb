@@ -1,26 +1,36 @@
 name: Check Upstream Releases
 
-
 on:
   schedule:
-    - cron: '0 */6 * * *'  
+    - cron: '0 */6 * * *'
   workflow_dispatch:
-
 
 jobs:
   check-upstream:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Install devscripts
-        run: sudo apt-get update && sudo apt-get install -y devscripts
-      
+
+      - name: Install newer devscripts (uscan v5)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget gnupg debian-archive-keyring
+          echo 'deb http://deb.debian.org/debian testing main' | sudo tee /etc/apt/sources.list.d/debian-testing.list
+          sudo cp /usr/share/keyrings/debian-archive-keyring.gpg /etc/apt/trusted.gpg.d/debian-archive-keyring.gpg
+          sudo apt-get update
+          for d in bin lib lib32 lib64 libo32 libx32 sbin; do
+            sudo dpkg-divert --package base-files --no-rename --remove /$d || true
+          done
+          sudo apt-get -t testing install -y devscripts
+          uscan --version
+
+
       - name: Run uscan
         id: uscan
         run: uscan --verbose --report
         continue-on-error: true
-      
+
       - name: Create issue if new version found
         if: steps.uscan.outcome == 'success'
         uses: actions/github-script@v7
@@ -30,6 +40,7 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: 'New upstream version available',
-              body: 'uscan detected a new version. Please update the package.',
+              body: 'uscan detected a new upstream version. Please update the package.',
               labels: ['upstream-update']
             })
+
