@@ -23,9 +23,9 @@ override_dh_auto_install:
 	install -m 644 debian/pkg-config/libusockets.pc \
 	    debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/libusockets.pc
 
-override_dh_strip:
-	# Don't strip static libraries
-	dh_strip -X.a
+#override_dh_strip:
+#	#Don't strip static libraries
+#	dh_strip -X.a
 
 override_dh_auto_clean:
 	$(MAKE) clean || true
