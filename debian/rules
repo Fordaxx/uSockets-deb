@@ -9,7 +9,7 @@ export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
 	dh $@
 
 override_dh_auto_build:
-	WITH_OPENSSL=1 WITH_LIBUV=1 $(MAKE)
+	WITH_OPENSSL=1 WITH_LIBUV=1 WITH_LTO=0 $(MAKE)
 
 override_dh_auto_install:
 	install -d debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)
@@ -23,9 +23,8 @@ override_dh_auto_install:
 	install -m 644 debian/pkg-config/libusockets.pc \
 	    debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/libusockets.pc
 
-#override_dh_strip:
-#	#Don't strip static libraries
-#	dh_strip -X.a
+override_dh_strip:
+	dh_strip -X.a
 
 override_dh_auto_clean:
 	$(MAKE) clean || true
