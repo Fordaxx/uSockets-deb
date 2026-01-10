@@ -5,7 +5,8 @@ Maintainer: Ruslan Dautov <r.dautoff2016@yandex.ru>
 Build-Depends: debhelper-compat (= 13),
                libssl-dev,
                libuv1-dev,
-               pkg-config
+               pkg-config,
+               zlib1g-dev
 Standards-Version: 4.7.2.0
 Homepage: https://github.com/uNetworking/uSockets
 Vcs-Browser: https://github.com/roomitz/uSockets-deb
