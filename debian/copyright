@@ -4,22 +4,22 @@ Upstream-Contact: Alex Hultman <alexhultman@gmail.com>
 Source: https://github.com/uNetworking/uSockets
 
 Files: *
-Copyright: 2016-2025 uNetworking AB
+Copyright: 2016-2026 uNetworking AB
 License: Apache-2.0
 
 Files: debian/*
-Copyright: 2025 Ruslan Dautov <r.dautoff2016@yandex.ru>
+Copyright: 2026 Ruslan Dautov <r.dautoff2016@yandex.ru>
 License: Apache-2.0
 
 Files: boringssl/*
-Copyright: 2014-2025 Google Inc.
+Copyright: 2014-2026 Google Inc.
 License: Apache-2.0 OR OpenSSL OR ISC OR MIT
 Comment: Fork of OpenSSL with multi-licensing
  (Apache-2.0 for new code, OpenSSL License for imported code, ISC for some
  contributions, and MIT for third_party/fiat)
 
 Files: lsquic/*
-Copyright: 2017-2025 LiteSpeed Technologies Inc.
+Copyright: 2017-2026 LiteSpeed Technologies Inc.
 License: MIT
 Comment: QUIC and HTTP/3 protocol support
 
